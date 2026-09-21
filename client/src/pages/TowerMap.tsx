@@ -219,8 +219,10 @@ const TowerMap = () => {
               <span>Current Location</span>
             </div>
           </div>
-             {/* Map */}
-        <div className="map-wrapper" style={{ position: 'relative' }}>
+        </div>
+
+        {/* Map */}
+        <div className="map-wrapper" style={{ position: 'relative', flex: 1, minHeight: '500px' }}>
           {isGoogleMapsConfigured ? (
             <APIProvider apiKey={MAPS_API_KEY}>
               <Map
@@ -372,7 +374,7 @@ const TowerMap = () => {
               )}
             </div>
           )}
-        </div>     </div>
+        </div>
       </div>
     </div>
   );
