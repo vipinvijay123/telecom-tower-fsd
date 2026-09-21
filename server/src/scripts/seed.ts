@@ -19,10 +19,8 @@ export const runSeed = async () => {
   // ─── Check if already seeded ────────────────────────────────────────────────
   const existingTowers = await Tower.countDocuments();
   if (existingTowers > 0) {
-    console.log(`⚠️  Database already has ${existingTowers} towers. Skipping seed to avoid duplicates.`);
-    console.log('   To re-seed, manually clear the database first.');
-    await mongoose.disconnect();
-    process.exit(0);
+    console.log(`⚠️ Database already has ${existingTowers} towers. Skipping seed to avoid duplicates.`);
+    return;
   }
 
   console.log('\n📡 Seeding Telecom Tower Management System data...\n');
