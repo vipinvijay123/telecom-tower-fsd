@@ -6,7 +6,7 @@ import { towersApi } from '../services/api';
 import { Tower, TowerStatus } from '../types';
 import './TowerMap.css';
 
-const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyB8JkFIRM2yg4rAxsUP6_EPZZ-K8qZ0v7Q';
 
 const STATUS_COLORS: Record<TowerStatus, string> = {
   ACTIVE: '#00ff88',
