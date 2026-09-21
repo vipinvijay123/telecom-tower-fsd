@@ -1,0 +1,36 @@
+name: CI & Automated Deployment Check
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate-and-test:
+    name: Build & Test Automation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install & Verify Client
+        working-directory: ./client
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+
+      - name: Install, Build & Run API Tests on Server
+        working-directory: ./server
+        run: |
+          npm ci
+          npm run build
+          npx ts-node-dev --transpile-only src/scripts/test-api.ts
