@@ -99,45 +99,8 @@ const TowerMap = () => {
     setMapCenter({ lat: tower.location.latitude, lng: tower.location.longitude });
   };
 
-  if (!MAPS_API_KEY || MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY_HERE') {
-    return (
-      <div className="map-page">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Tower Map</h1>
-            <p className="page-subtitle">Interactive tower network visualization</p>
-          </div>
-        </div>
-        <div className="card map-api-notice">
-          <MapPin size={48} color="var(--color-accent-blue)" style={{ opacity: 0.6 }} />
-          <h2>Google Maps API Key Required</h2>
-          <p>
-            Add your Google Maps JavaScript API key to{' '}
-            <code>client/.env</code>:
-          </p>
-          <pre>{`VITE_GOOGLE_MAPS_API_KEY=your_api_key_here`}</pre>
-          <p className="text-sm text-muted" style={{ marginTop: '0.5rem' }}>
-            Get a key at{' '}
-            <a href="https://console.cloud.google.com/google/maps-apis" target="_blank" rel="noreferrer">
-              Google Cloud Console
-            </a>
-            . Enable the{' '}
-            <strong>Maps JavaScript API</strong>.
-          </p>
-          <div style={{ marginTop: '1.5rem' }}>
-            <h4 className="mb-2">Tower Locations from MongoDB ({towers.length} towers)</h4>
-            {towers.slice(0, 5).map(t => (
-              <div key={t._id} className="tower-location-row">
-                <span className="badge badge-info">{t.towerId}</span>
-                <span>{t.name}</span>
-                <span className="text-muted">{t.location.city} — {t.location.latitude.toFixed(4)}, {t.location.longitude.toFixed(4)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // If Google Maps API key is not provided, use full interactive OpenStreetMap fallback
+  const isGoogleMapsConfigured = MAPS_API_KEY && MAPS_API_KEY !== 'YOUR_GOOGLE_MAPS_API_KEY_HERE';
 
   return (
     <div className="map-page">
@@ -256,97 +219,160 @@ const TowerMap = () => {
               <span>Current Location</span>
             </div>
           </div>
-        </div>
+             {/* Map */}
+        <div className="map-wrapper" style={{ position: 'relative' }}>
+          {isGoogleMapsConfigured ? (
+            <APIProvider apiKey={MAPS_API_KEY}>
+              <Map
+                mapId="telecom-tower-map"
+                center={mapCenter}
+                zoom={5}
+                style={{ width: '100%', height: '100%' }}
+                colorScheme="DARK"
+                gestureHandling="greedy"
+                disableDefaultUI={false}
+              >
+                {/* User location marker */}
+                {userLocation && (
+                  <AdvancedMarker position={userLocation} title="Your Location">
+                    <div className="user-marker">
+                      <Locate size={16} color="#00d4ff" />
+                    </div>
+                  </AdvancedMarker>
+                )}
 
-        {/* Map */}
-        <div className="map-wrapper">
-          <APIProvider apiKey={MAPS_API_KEY}>
-            <Map
-              mapId="telecom-tower-map"
-              center={mapCenter}
-              zoom={5}
-              style={{ width: '100%', height: '100%' }}
-              colorScheme="DARK"
-              gestureHandling="greedy"
-              disableDefaultUI={false}
-            >
-              {/* User location marker */}
-              {userLocation && (
-                <AdvancedMarker position={userLocation} title="Your Location">
-                  <div className="user-marker">
-                    <Locate size={16} color="#00d4ff" />
-                  </div>
-                </AdvancedMarker>
-              )}
+                {/* Tower markers */}
+                {filteredTowers.map(tower => (
+                  <AdvancedMarker
+                    key={tower._id}
+                    position={{ lat: tower.location.latitude, lng: tower.location.longitude }}
+                    onClick={() => setSelectedTower(tower)}
+                    title={tower.name}
+                  >
+                    <Pin
+                      background={STATUS_COLORS[tower.status]}
+                      borderColor={STATUS_COLORS[tower.status]}
+                      glyphColor="#000"
+                    />
+                  </AdvancedMarker>
+                ))}
 
-              {/* Tower markers */}
-              {filteredTowers.map(tower => (
-                <AdvancedMarker
-                  key={tower._id}
-                  position={{ lat: tower.location.latitude, lng: tower.location.longitude }}
-                  onClick={() => setSelectedTower(tower)}
-                  title={tower.name}
-                >
-                  <Pin
-                    background={STATUS_COLORS[tower.status]}
-                    borderColor={STATUS_COLORS[tower.status]}
-                    glyphColor="#000"
-                  />
-                </AdvancedMarker>
-              ))}
+                {/* Info window */}
+                {selectedTower && (
+                  <InfoWindow
+                    position={{
+                      lat: selectedTower.location.latitude,
+                      lng: selectedTower.location.longitude,
+                    }}
+                    onCloseClick={() => setSelectedTower(null)}
+                  >
+                    <div className="info-window">
+                      <div className="info-header">
+                        <span className="info-tower-id">{selectedTower.towerId}</span>
+                        <span
+                          className="info-status"
+                          style={{
+                            background: `${STATUS_COLORS[selectedTower.status]}25`,
+                            color: STATUS_COLORS[selectedTower.status],
+                          }}
+                        >
+                          {selectedTower.status}
+                        </span>
+                      </div>
+                      <h3 className="info-name">{selectedTower.name}</h3>
+                      <div className="info-details">
+                        <div><strong>Location:</strong> {selectedTower.location.city}, {selectedTower.location.state}</div>
+                        <div><strong>Operator:</strong> {selectedTower.operator}</div>
+                        <div><strong>Type:</strong> {selectedTower.towerType}</div>
+                        <div><strong>Coordinates:</strong> {selectedTower.location.latitude.toFixed(4)}, {selectedTower.location.longitude.toFixed(4)}</div>
+                        {selectedTower.lastInspectionDate && (
+                          <div><strong>Last Inspection:</strong> {new Date(selectedTower.lastInspectionDate).toLocaleDateString()}</div>
+                        )}
+                      </div>
+                      <div className="info-actions">
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => navigate(`/towers?id=${selectedTower._id}`)}
+                        >
+                          <ExternalLink size={12} /> View Details
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleNavigateToTower(selectedTower)}
+                        >
+                          <Navigation size={12} /> Navigate
+                        </button>
+                      </div>
+                    </div>
+                  </InfoWindow>
+                )}
+              </Map>
+            </APIProvider>
+          ) : (
+            /* Interactive OpenStreetMap Fallback View */
+            <div className="osm-map-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
+              <iframe
+                title="Telecom Towers Interactive Map"
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                scrolling="no"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapCenter.lng - 4}%2C${mapCenter.lat - 4}%2C${mapCenter.lng + 4}%2C${mapCenter.lat + 4}&layer=mapnik&marker=${mapCenter.lat}%2C${mapCenter.lng}`}
+                style={{ border: 'none', filter: 'brightness(0.85) contrast(1.1) invert(0.9) hue-rotate(180deg)' }}
+              />
 
-              {/* Info window */}
+              {/* Selected Tower Floating Card Overlay */}
               {selectedTower && (
-                <InfoWindow
-                  position={{
-                    lat: selectedTower.location.latitude,
-                    lng: selectedTower.location.longitude,
+                <div
+                  className="card p-3 shadow-lg"
+                  style={{
+                    position: 'absolute',
+                    top: '20px',
+                    right: '20px',
+                    width: '320px',
+                    zIndex: 20,
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid var(--color-border-active)',
                   }}
-                  onCloseClick={() => setSelectedTower(null)}
                 >
-                  <div className="info-window">
-                    <div className="info-header">
-                      <span className="info-tower-id">{selectedTower.towerId}</span>
-                      <span
-                        className="info-status"
-                        style={{
-                          background: `${STATUS_COLORS[selectedTower.status]}25`,
-                          color: STATUS_COLORS[selectedTower.status],
-                        }}
-                      >
-                        {selectedTower.status}
-                      </span>
-                    </div>
-                    <h3 className="info-name">{selectedTower.name}</h3>
-                    <div className="info-details">
-                      <div><strong>Location:</strong> {selectedTower.location.city}, {selectedTower.location.state}</div>
-                      <div><strong>Operator:</strong> {selectedTower.operator}</div>
-                      <div><strong>Type:</strong> {selectedTower.towerType}</div>
-                      <div><strong>Coordinates:</strong> {selectedTower.location.latitude.toFixed(4)}, {selectedTower.location.longitude.toFixed(4)}</div>
-                      {selectedTower.lastInspectionDate && (
-                        <div><strong>Last Inspection:</strong> {new Date(selectedTower.lastInspectionDate).toLocaleDateString()}</div>
-                      )}
-                    </div>
-                    <div className="info-actions">
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => navigate(`/towers?id=${selectedTower._id}`)}
-                      >
-                        <ExternalLink size={12} /> View Details
-                      </button>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleNavigateToTower(selectedTower)}
-                      >
-                        <Navigation size={12} /> Navigate
-                      </button>
-                    </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="badge badge-info">{selectedTower.towerId}</span>
+                    <button className="btn-icon" onClick={() => setSelectedTower(null)}>
+                      <X size={14} />
+                    </button>
                   </div>
-                </InfoWindow>
+                  <h3 className="text-base font-bold mb-1">{selectedTower.name}</h3>
+                  <p className="text-xs text-muted mb-2">
+                    📍 {selectedTower.location.address}, {selectedTower.location.city}, {selectedTower.location.state}
+                  </p>
+
+                  <div className="text-xs grid grid-cols-2 gap-1 mb-3 bg-slate-900 p-2 rounded">
+                    <div><strong>Type:</strong> {selectedTower.towerType}</div>
+                    <div><strong>Status:</strong> <span style={{ color: STATUS_COLORS[selectedTower.status] }}>{selectedTower.status}</span></div>
+                    <div><strong>Height:</strong> {selectedTower.height || 45}m</div>
+                    <div><strong>Operator:</strong> {selectedTower.operator}</div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      className="btn btn-primary btn-sm w-full"
+                      onClick={() => navigate(`/towers?id=${selectedTower._id}`)}
+                    >
+                      <ExternalLink size={12} /> Details
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm w-full"
+                      onClick={() => handleNavigateToTower(selectedTower)}
+                    >
+                      <Navigation size={12} /> Navigate
+                    </button>
+                  </div>
+                </div>
               )}
-            </Map>
-          </APIProvider>
-        </div>
+            </div>
+          )}
+        </div>     </div>
       </div>
     </div>
   );
